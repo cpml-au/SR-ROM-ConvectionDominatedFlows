@@ -1,0 +1,14 @@
+name: sr_rom
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip
+  - python=3.11.9
+  - numpy
+  - pip:
+    - torch
+    - joblib
+    - scikit-learn
+    - skorch
+    - pyoperon
