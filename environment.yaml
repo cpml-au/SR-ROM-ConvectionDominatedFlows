@@ -4,10 +4,11 @@ channels:
   - defaults
 dependencies:
   - pip
-  - python
-  - torch
+  - python=3.11.9
   - numpy
   - pip:
+    - torch
     - joblib
     - scikit-learn
     - skorch
+    - pyoperon

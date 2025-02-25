@@ -129,7 +129,7 @@ if __name__ == "__main__":
     X = a_FOM[idx_Re, :]
     y = tau[idx_Re, :]
 
-    num_runs = 50
+    num_runs = 5
 
     # Standardization
     mean_std_X_train = [np.mean(X, axis=0),
@@ -152,8 +152,8 @@ if __name__ == "__main__":
         energy_FOM[i] = line.split()[-2]
 
     # define directories in which the results are saved
-    # time_extrapolation_dir = "/home/smanti/sr_rom/src/sr_rom/results_time_extrapolation/"
-    time_extrapolation_dir = "/home/smanti/sr_rom/"
+    # time_extrapolation_dir = "/home/smanti/SR-ROM_ConvectionDominatedFlows/src/sr_rom/results_time_extrapolation/"
+    time_extrapolation_dir = "/home/smanti/SR-ROM_ConvectionDominatedFlows/"
     results_dir = time_extrapolation_dir + bench_name + "r_" + str(r) + "/"
     if method == "LR":
         lr_directory = f"{results_dir}lr/Re{str(fixed_Re)}/"
