@@ -5,10 +5,12 @@ channels:
 dependencies:
   - pip
   - python=3.11.9
-  - numpy
+  - numpy=1.26.4
   - pip:
-    - torch
+    - torch=2.1.0
     - joblib
     - scikit-learn
     - skorch
     - pyoperon
+    - pytest
+    - pytest-cov
