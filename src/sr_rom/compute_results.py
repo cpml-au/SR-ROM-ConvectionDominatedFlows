@@ -166,21 +166,31 @@ def compute_nn_results(
 
 
 if __name__ == "__main__":
-    # load all the data
-    Re_list = [400, 500]
-    num_t = 2001
     bench_name = "2dcyl/"
     method = "NN"
+
+    if bench_name == "2dcyl/":
+        # load all the data
+        Re_list = [400, 500]
+        # parameter for a given Reynolds in Re_list
+        fixed_Re = 400
+        T_sample = 40
+        T_sample_full = 100
+        dt = 0.01
+        iostep = 1
+    elif bench_name == "ldc/":
+        Re_list = [10000, 15000, 20000]
+        # parameter for a given Reynolds in Re_list
+        fixed_Re = 10000
+        T_sample = 160
+        T_sample_full = 400
+        dt = 0.01
+        iostep = 4
+
+    val_idx = np.arange(2001, 4001)
+    num_t = 2001
     r = 2
     Re, tau, a_FOM = process_data(r, f"{bench_name}Re", Re_list, num_t)
-
-    # parameter for a given Reynolds in Re_list
-    fixed_Re = 400
-    T_sample = 40
-    T_sample_full = 100
-    val_idx = np.arange(2001, 4001)
-    dt = 0.01
-    iostep = 1
 
     idx_Re = np.where(Re == fixed_Re)[0][0]
     X = a_FOM[idx_Re, :]
