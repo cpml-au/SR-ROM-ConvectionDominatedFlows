@@ -1,7 +1,7 @@
 # SR-ROM
 
 <p align="center">
-<img src="schematic_sr_rom.jpg" alt="My figure" width="30%">
+<img src="schematic_sr_rom.jpg" alt="My figure" width="50%">
 </p>
 
 This repository contains the code used to produce the results of the paper [Symbolic Regression of Data-Driven Reduced Order Model Closures for Under-Resolved, Convection-Dominated Flows
