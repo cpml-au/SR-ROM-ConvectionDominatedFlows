@@ -8,9 +8,10 @@ from skorch.utils import to_device
 import ast
 import joblib
 from sr_rom.roms import *
+import numpy.typing as npt
 
 
-def eval_tau_with_saved_models(nb, pclosure, method):
+def eval_tau_with_saved_models(nb: int, pclosure: str, method: str):
     # setup for closure function
     # Load mean and standard deviation files
     mean_std_X_train_file = f"{pclosure}mean_std_X_train.npy"
@@ -27,10 +28,14 @@ def eval_tau_with_saved_models(nb, pclosure, method):
         for i, best_params in enumerate(file):
             curr_model = {}
             best_params_dict = ast.literal_eval(best_params)
-            curr_model["model_path"] = f"{pclosure}model_param_" + str(i)+".pkl"
-            curr_model["module__hidden_units"] = best_params_dict["module__hidden_units"]
-            curr_model['module__dropout_rate'] = best_params_dict['module__dropout_rate']
-            curr_model['module__r'] = best_params_dict['module__r']
+            curr_model["model_path"] = f"{pclosure}model_param_" + str(i) + ".pkl"
+            curr_model["module__hidden_units"] = best_params_dict[
+                "module__hidden_units"
+            ]
+            curr_model["module__dropout_rate"] = best_params_dict[
+                "module__dropout_rate"
+            ]
+            curr_model["module__r"] = best_params_dict["module__r"]
             model_files.append(curr_model)
 
     elif method == "LI":
@@ -41,16 +46,21 @@ def eval_tau_with_saved_models(nb, pclosure, method):
 
     # Create the process_input_and_calculate_tau function with cached mean and std values
     mean_inputs, std_inputs, best_models = load_inputs_models(
-        model_files, mean_std_X_train_file, method)
+        model_files, mean_std_X_train_file, method
+    )
 
     # define eval tau function
-    eval_tau = partial(compute_tau_with_saved_models,
-                       mean_inputs=mean_inputs, std_inputs=std_inputs,
-                       best_models=best_models, method=method)
+    eval_tau = partial(
+        compute_tau_with_saved_models,
+        mean_inputs=mean_inputs,
+        std_inputs=std_inputs,
+        best_models=best_models,
+        method=method,
+    )
     return eval_tau
 
 
-def eval_tau_with_curr_models(pclosure, models):
+def eval_tau_with_curr_models(pclosure: str, models: List):
     # Load mean and standard deviation files
     mean_std_X_train_file = f"{pclosure}mean_std_X_train.npy"
     # Load mean and standard deviation values for inputs and outputs
@@ -59,14 +69,30 @@ def eval_tau_with_curr_models(pclosure, models):
     std_inputs = mean_std_X_train[1]
 
     # define eval tau function
-    eval_tau = partial(compute_tau_with_curr_models,
-                       mean_inputs=mean_inputs, std_inputs=std_inputs,
-                       best_models=models)
+    eval_tau = partial(
+        compute_tau_with_curr_models,
+        mean_inputs=mean_inputs,
+        std_inputs=std_inputs,
+        best_models=models,
+    )
     return eval_tau
 
 
-def vmsrom_solver_wclosure(au, bu, cu, a0, u0, nsteps, iostep, nu, Dt,
-                           nb, method, pclosure, reg_rom=None):
+def vmsrom_solver_wclosure(
+    au: npt.NDArray,
+    bu: npt.NDArray,
+    cu: npt.NDArray,
+    a0: npt.NDArray,
+    u0: npt.NDArray,
+    nsteps: int,
+    iostep: int,
+    nu: float,
+    Dt: float,
+    nb: int,
+    method: str,
+    pclosure: str,
+    reg_rom: rom = None,
+):
 
     rhs = np.zeros((nb, 1))
     ext = np.zeros((nb, 3))
@@ -75,14 +101,11 @@ def vmsrom_solver_wclosure(au, bu, cu, a0, u0, nsteps, iostep, nu, Dt,
     alphas = np.zeros((3, 3))
     betas = np.zeros((4, 3))
 
-    alphas = np.array([[1., 2., 3],
-                      [0., -1., -3.],
-                      [0., 0., 1.]])
+    alphas = np.array([[1.0, 2.0, 3], [0.0, -1.0, -3.0], [0.0, 0.0, 1.0]])
 
-    betas = np.array([[1., 1.5, 11/6],
-                     [-1., -2., -3.],
-                     [0., 0.5, 1.5],
-                     [0., 0., -1/3]])
+    betas = np.array(
+        [[1.0, 1.5, 11 / 6], [-1.0, -2.0, -3.0], [0.0, 0.5, 1.5], [0.0, 0.0, -1 / 3]]
+    )
 
     ucoef = np.zeros(((nsteps // iostep) + 1, nb + 1))
     ucoef[0, :] = u0
@@ -117,8 +140,9 @@ def vmsrom_solver_wclosure(au, bu, cu, a0, u0, nsteps, iostep, nu, Dt,
         if hufac is None:
             h = bu * betas[0, ito - 1] / Dt + au * nu
             hfac = np.linalg.cholesky(h)
-        u_new = np.hstack(([1], np.linalg.solve(
-            hfac, np.linalg.solve(hfac.T, rhs)).flatten()))
+        u_new = np.hstack(
+            ([1], np.linalg.solve(hfac, np.linalg.solve(hfac.T, rhs)).flatten())
+        )
 
         u[:, 2] = u[:, 1]
         u[:, 1] = u[:, 0]
@@ -127,45 +151,53 @@ def vmsrom_solver_wclosure(au, bu, cu, a0, u0, nsteps, iostep, nu, Dt,
         if istep % iostep == 0:
             ucoef[istep // iostep, :] = u[:, 0]
         elif np.isnan(np.sum(u[:, 0])):
-            ucoef[(istep // iostep + 1):, :] *= np.nan
+            ucoef[(istep // iostep + 1) :, :] *= np.nan
             break
 
     return istep, ucoef
 
 
-def read_model(file_path):
-    with open(file_path, 'r') as file:
+def read_model(file_path: str):
+    with open(file_path, "r") as file:
         lines = file.readlines()
     return [line.strip() for line in lines]
 
 
-def parse_equation(equation):
+def parse_equation(equation: str):
     # Replace tau_0, tau_1, etc. with variable names for Python code
-    equation = equation.replace('tau_', 'tau[')
-    equation = equation.replace(' = ', '] = ')
-    equation = equation.replace('^', '**')
+    equation = equation.replace("tau_", "tau[")
+    equation = equation.replace(" = ", "] = ")
+    equation = equation.replace("^", "**")
     return equation
 
 
-def calculate_taus_sr(*args, equations):
+def calculate_taus_sr(*args, equations: str):
     # Prepare the context for evaluation
     arg_context = {}
     for i, arg in enumerate(args):
-        arg_context['X' + str(i+1)] = arg
+        arg_context["X" + str(i + 1)] = arg
 
     # Include required math functions and placeholder for tau values
-    context = arg_context | {'sin': np.sin, 'cos': np.cos, 'tan': np.tan,
-                             'exp': np.exp, 'log': np.log, 'asin': np.arcsin,
-                             'acos': np.arccos, 'np': np, 'sqrt': np.sqrt,
-                             'tau': [0] * len(equations)}
+    context = arg_context | {
+        "sin": np.sin,
+        "cos": np.cos,
+        "tan": np.tan,
+        "exp": np.exp,
+        "log": np.log,
+        "asin": np.arcsin,
+        "acos": np.arccos,
+        "np": np,
+        "sqrt": np.sqrt,
+        "tau": [0] * len(equations),
+    }
 
     # Execute each equation in the context
     for eq in equations:
         exec(eq, context)
-    return context['tau']
+    return context["tau"]
 
 
-def process_models_sr(model_file):
+def process_models_sr(model_file: str):
     # Read model equations
     equations = read_model(model_file)
     parsed_equations = [parse_equation(eq) for eq in equations]
@@ -173,22 +205,23 @@ def process_models_sr(model_file):
     return parsed_equations
 
 
-def process_models_nn(models):
+def process_models_nn(models: List):
     best_models = []
     for model in models:
         best_model = NeuralNetRegressor(
             module=NeuralNetwork,
             module__hidden_units=model["module__hidden_units"],
             module__dropout_rate=model["module__dropout_rate"],
-            module__r=model["module__r"]+1,
-            device="cpu")
+            module__r=model["module__r"] + 1,
+            device="cpu",
+        )
         best_model.initialize()
         best_model.load_params(f_params=model["model_path"])
         # Ensures model loads on cpu
-        best_model.set_params(device='cpu')
+        best_model.set_params(device="cpu")
 
         # Moves current model instance to cpu
-        to_device(best_model.module_, 'cpu')
+        to_device(best_model.module_, "cpu")
         module_ = best_model.module_
         module_.eval()
         module_ = jit.script(module_)
@@ -197,12 +230,12 @@ def process_models_nn(models):
     return best_models
 
 
-def process_models_lr(model_file):
+def process_models_lr(model_file: str):
     models = [joblib.load(model) for model in model_file]
     return models
 
 
-def load_inputs_models(model_file, mean_std_X_train_file, method):
+def load_inputs_models(model_file: str, mean_std_X_train_file: str, method: str):
     if method == "SR":
         best_models = process_models_sr(model_file)
         # best_models = model_file
@@ -220,10 +253,11 @@ def load_inputs_models(model_file, mean_std_X_train_file, method):
 
 
 @torch.inference_mode()
-def calculate_taus_nn(adjusted_inputs, best_models):
+def calculate_taus_nn(adjusted_inputs: npt.NDArray, best_models: List):
     tau_values = np.zeros(len(adjusted_inputs))
     adj_inputs_reshaped = torch.from_numpy(
-        adjusted_inputs.reshape(-1, 1).T.astype(np.float32))
+        adjusted_inputs.reshape(-1, 1).T.astype(np.float32)
+    )
     with torch.no_grad():
         for i, model in enumerate(best_models):
             model_out = model.forward(adj_inputs_reshaped).flatten()
@@ -231,18 +265,25 @@ def calculate_taus_nn(adjusted_inputs, best_models):
     return tau_values
 
 
-def calculate_taus_lr(adjusted_inputs, best_models):
-    tau_values = np.array([model.predict(adjusted_inputs.reshape(1, -1))
-                          for model in best_models]).flatten()
+def calculate_taus_lr(adjusted_inputs: npt.NDArray, best_models: List):
+    tau_values = np.array(
+        [model.predict(adjusted_inputs.reshape(1, -1)) for model in best_models]
+    ).flatten()
     return tau_values
 
 
-def compute_tau_with_saved_models(input_values, mean_inputs, std_inputs, best_models, method):
+def compute_tau_with_saved_models(
+    input_values: npt.NDArray,
+    mean_inputs: npt.NDArray,
+    std_inputs: npt.NDArray,
+    best_models: List,
+    method: str,
+):
     # Adjust input_values using mean and std for inputs
     adjusted_inputs = (input_values - mean_inputs) / std_inputs
 
     if np.isnan(np.sum(adjusted_inputs)):
-        return np.nan*np.zeros_like(adjusted_inputs)
+        return np.nan * np.zeros_like(adjusted_inputs)
 
     # Calculate tau values with adj vusted inputs
     if method == "SR":
@@ -258,12 +299,17 @@ def compute_tau_with_saved_models(input_values, mean_inputs, std_inputs, best_mo
     return adjusted_tau_values
 
 
-def compute_tau_with_curr_models(input_values, mean_inputs, std_inputs, best_models):
+def compute_tau_with_curr_models(
+    input_values: npt.NDArray,
+    mean_inputs: npt.NDArray,
+    std_inputs: npt.NDArray,
+    best_models: List,
+):
     # Adjust input_values using mean and std for inputs
     adjusted_inputs = (input_values - mean_inputs) / std_inputs
 
     if np.isnan(np.sum(adjusted_inputs)):
-        return np.nan*np.zeros_like(adjusted_inputs)
+        return np.nan * np.zeros_like(adjusted_inputs)
 
     # tau_values = np.array([model.predict(adjusted_inputs.reshape(1, -1))
     #                       for model in best_models]).flatten()
@@ -272,34 +318,36 @@ def compute_tau_with_curr_models(input_values, mean_inputs, std_inputs, best_mod
     return tau_values
 
 
-def load_rom_ops(path):
+def load_rom_ops(path: str):
     mb = np.loadtxt(path + "/nb")
     mb = int(mb)  # Ensure mb is an integer
 
     # load stiffness matrix
     a0_full = np.loadtxt(path + "/au")
-    a0_full = a0_full.reshape((mb + 1, mb + 1), order='F')
+    a0_full = a0_full.reshape((mb + 1, mb + 1), order="F")
 
     # load mass matrix
     b0_full = np.loadtxt(path + "/bu")
-    b0_full = b0_full.reshape((mb + 1, mb + 1), order='F')
+    b0_full = b0_full.reshape((mb + 1, mb + 1), order="F")
 
     # load advection tensor
     cu_full = np.loadtxt(path + "/cu")
-    cu_full = cu_full.reshape((mb, mb + 1, mb + 1), order='F')
+    cu_full = cu_full.reshape((mb, mb + 1, mb + 1), order="F")
 
     return a0_full, b0_full, cu_full, mb
 
 
-def get_rom_ops_r_dim(a0_full, b0_full, cu_full, nb):
-    au0 = a0_full[0:nb+1, 0:nb+1]
+def get_rom_ops_r_dim(
+    a0_full: npt.NDArray, b0_full: npt.NDArray, cu_full: npt.NDArray, nb: int
+):
+    au0 = a0_full[0 : nb + 1, 0 : nb + 1]
 
-    bu0 = b0_full[0:nb+1, 0:nb+1]
+    bu0 = b0_full[0 : nb + 1, 0 : nb + 1]
 
-    cutmp = cu_full[0:nb, 0:nb+1, 0:nb+1]
-    cutmp1 = cu_full[0:nb, 1:nb+1, 1:nb+1]
+    cutmp = cu_full[0:nb, 0 : nb + 1, 0 : nb + 1]
+    cutmp1 = cu_full[0:nb, 1 : nb + 1, 1 : nb + 1]
     cu = cutmp1.reshape((nb * nb, nb))
-    cu_full = cutmp.reshape((nb * (nb+1), nb+1))
+    cu_full = cutmp.reshape((nb * (nb + 1), nb + 1))
 
     a0 = au0[1:, 0]
     au = au0[1:, 1:]
@@ -308,7 +356,7 @@ def get_rom_ops_r_dim(a0_full, b0_full, cu_full, nb):
     return au0, bu0, au, bu, cu, cutmp, cutmp1, cu_full, a0
 
 
-def load_initial_condition(path, nb):
+def load_initial_condition(path: str, nb: int):
     index = np.arange(nb + 1)
     u0_full = np.loadtxt(path + "/u0")
     u0 = u0_full[index]
@@ -316,9 +364,18 @@ def load_initial_condition(path, nb):
     return u0
 
 
-def solve_ode(Re: int, method, sdir, path_to_model, T_final: float = 20, dt: float = 0.001,
-              iostep: int = 1, r: int = 5, reg_list: Optional[List] = None):
-    """ Main driver to run VMSROM with closure at a given Reynolds number.
+def solve_ode(
+    Re: int,
+    method: str,
+    sdir: str,
+    path_to_model: str,
+    T_final: float = 20,
+    dt: float = 0.001,
+    iostep: int = 1,
+    r: int = 5,
+    reg_list: Optional[List] = None,
+):
+    """Main driver to run VMSROM with closure at a given Reynolds number.
 
     Args:
         Re: Reynolds number
@@ -327,7 +384,7 @@ def solve_ode(Re: int, method, sdir, path_to_model, T_final: float = 20, dt: flo
     """
 
     # viscosity
-    mu = 1. / Re
+    mu = 1.0 / Re
     # number of time steps
     nsteps = int(T_final / dt)
 
@@ -336,15 +393,29 @@ def solve_ode(Re: int, method, sdir, path_to_model, T_final: float = 20, dt: flo
 
     # Extract r (mb) dimensional NekROM operators
     _, bu0, au, bu, _, _, _, cufull, a0 = get_rom_ops_r_dim(
-        a0_full, b0_full, cu_full, r)
+        a0_full, b0_full, cu_full, r
+    )
     u0 = load_initial_condition(sdir, r)  # load r-dimensional initial condition
 
     # Run VMSROM with closure
     _, ucoef = vmsrom_solver_wclosure(
-        au, bu, cufull, a0, u0, nsteps, iostep, mu, dt, r, method, path_to_model, reg_list)
+        au,
+        bu,
+        cufull,
+        a0,
+        u0,
+        nsteps,
+        iostep,
+        mu,
+        dt,
+        r,
+        method,
+        path_to_model,
+        reg_list,
+    )
 
     # Compute the energy
     ene_matrix = ucoef @ bu0 @ ucoef.T
-    ene = 0.5*np.diag(ene_matrix)
+    ene = 0.5 * np.diag(ene_matrix)
 
     return ucoef, ene
