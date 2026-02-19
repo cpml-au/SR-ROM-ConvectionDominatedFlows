@@ -1,16 +1,19 @@
 name: sr_rom
 channels:
+  - pytorch
   - conda-forge
   - defaults
 dependencies:
   - pip
-  - python=3.11.9
-  - numpy=1.26.4
-  - pip:
-    - torch=2.1.0
-    - joblib
-    - scikit-learn
+  - python
+  - numpy
+  - pytorch
+  - cpuonly
+  - joblib
+  - scikit-learn
+  - pytest
+  - pytest-cov
+  - pip:  
     - skorch
     - pyoperon
-    - pytest
-    - pytest-cov
+    

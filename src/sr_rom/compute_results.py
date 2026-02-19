@@ -6,13 +6,26 @@ import warnings
 import joblib
 import torch
 import os
+import numpy.typing as npt
+from sr_rom.roms import sr_rom
+import argparse
 
 # suppress warnings
 warnings.filterwarnings("ignore")
 
 
 def save_sr_results(
-    X, y, sr_rom, Re, sdir, sr_directory, dt, iostep, T_sample_full, r, num_run
+    X: npt.NDArray,
+    y: npt.NDArray,
+    sr_rom: sr_rom,
+    Re: float,
+    sdir: str,
+    sr_directory: str,
+    dt: float,
+    iostep: int,
+    T_sample_full: int,
+    r: int,
+    num_run: int,
 ):
     # save best models
     exist_models = os.path.exists(f"{sr_directory}models.txt")
@@ -42,18 +55,18 @@ def save_sr_results(
 
 # lr fit
 def compute_lr_results(
-    X,
-    y,
-    val_idx,
-    sdir,
-    lr_directory,
-    r,
-    Re,
-    T_sample,
-    dt,
-    iostep,
+    X: npt.NDArray,
+    y: npt.NDArray,
+    val_idx: npt.NDArray,
+    sdir: str,
+    lr_directory: str,
+    r: int,
+    Re: float,
+    T_sample: int,
+    dt: float,
+    iostep: int,
     T_sample_full,
-    energy_FOM,
+    energy_FOM: npt.NDArray,
 ):
     lr_rom = fit_lr(
         X, y, val_idx, sdir, lr_directory, r, Re, T_sample, dt, iostep, energy_FOM
@@ -74,19 +87,19 @@ def compute_lr_results(
 
 # sr fit
 def compute_sr_results(
-    X,
-    y,
-    val_idx,
-    sdir,
-    sr_directory,
-    r,
-    Re,
-    T_sample,
-    dt,
-    iostep,
-    T_sample_full,
-    energy_FOM,
-    num_runs,
+    X: npt.NDArray,
+    y: npt.NDArray,
+    val_idx: npt.NDArray,
+    sdir: str,
+    sr_directory: str,
+    r: int,
+    Re: float,
+    T_sample: int,
+    dt: float,
+    iostep: int,
+    T_sample_full: int,
+    energy_FOM: npt.NDArray,
+    num_runs: int,
 ):
     print("SR-ROM training started", flush=True)
     for num_run in np.arange(num_runs):
@@ -103,20 +116,20 @@ def compute_sr_results(
 
 
 def compute_nn_results(
-    X,
-    y,
-    val_idx,
-    sdir,
-    nn_directory,
-    r,
-    Re,
+    X: npt.NDArray,
+    y: npt.NDArray,
+    val_idx: npt.NDArray,
+    sdir: str,
+    nn_directory: str,
+    r: int,
+    Re: float,
     T_sample,
-    dt,
-    iostep,
+    dt: float,
+    iostep: int,
     T_sample_full,
-    energy_FOM,
-    device,
-    num_runs,
+    energy_FOM: npt.NDArray,
+    device: str,
+    num_runs: int,
 ):
     print("NN-ROM training started", flush=True)
     for num_run in range(num_runs):
@@ -166,14 +179,20 @@ def compute_nn_results(
 
 
 if __name__ == "__main__":
-    bench_name = "2dcyl/"
-    method = "NN"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--bench_name", type=str, required=True)
+    parser.add_argument("--method", type=str, required=True)
+    parser.add_argument("--re", type=str, required=True)
+
+    args = parser.parse_args()
+    bench_name = f"{args.bench_name}/"
+    method = args.method
+    fixed_Re = int(args.re)
 
     if bench_name == "2dcyl/":
         # load all the data
         Re_list = [400, 500]
         # parameter for a given Reynolds in Re_list
-        fixed_Re = 400
         T_sample = 40
         T_sample_full = 100
         dt = 0.01
@@ -181,7 +200,6 @@ if __name__ == "__main__":
     elif bench_name == "ldc/":
         Re_list = [10000, 15000, 20000]
         # parameter for a given Reynolds in Re_list
-        fixed_Re = 10000
         T_sample = 160
         T_sample_full = 400
         dt = 0.01
